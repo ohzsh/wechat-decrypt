@@ -3,10 +3,6 @@ name = "wechat-mcp"
 version = "0.1.0"
 edition = "2021"
 
-[lib]
-name = "wechat_mcp_lib"
-crate-type = ["lib", "cdylib", "staticlib"]
-
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 

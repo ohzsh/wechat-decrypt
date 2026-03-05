@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WeChat MCP Manager</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="logo">
+      <span class="logo-icon">&#x1F4AC;</span>
+      <span class="logo-text">WeChat MCP</span>
+    </div>
+    <nav class="nav">
+      <button class="nav-btn active" data-tab="config">
+        <span class="nav-icon">&#x2699;&#xFE0F;</span> 配置
+      </button>
+      <button class="nav-btn" data-tab="keys">
+        <span class="nav-icon">&#x1F511;</span> 密钥管理
+      </button>
+      <button class="nav-btn" data-tab="webui">
+        <span class="nav-icon">&#x1F310;</span> Web UI
+      </button>
+      <button class="nav-btn" data-tab="claude">
+        <span class="nav-icon">&#x1F916;</span> Claude 注册
+      </button>
+      <button class="nav-btn" data-tab="settings">
+        <span class="nav-icon">&#x1F527;</span> 设置
+      </button>
+    </nav>
+    <div class="sidebar-footer">v0.1.0</div>
+  </aside>
+
+  <div class="content">
+    <!-- ===== 配置 ===== -->
+    <div class="tab active" id="tab-config">
+      <h2 class="section-title">数据库路径配置</h2>
+      <p class="section-desc">首次使用前请确认 WeChat 数据库目录路径。通常在 微信设置 → 文件管理 中可以查看。</p>
+
+      <div class="form-group">
+        <label class="form-label">WeChat DB 目录 <span class="hint">(db_storage 目录)</span></label>
+        <div class="input-row">
+          <input type="text" id="cfg-db-dir" class="input" placeholder="D:\xwechat_files\wxid_xxx\db_storage">
+          <button class="btn btn-secondary" onclick="App.browseDbDir()">浏览</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">密钥文件路径 <span class="hint">(all_keys.json)</span></label>
+        <input type="text" id="cfg-keys-file" class="input" readonly>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">解密输出目录</label>
+        <input type="text" id="cfg-decrypted-dir" class="input" readonly>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">图片解密目录</label>
+        <input type="text" id="cfg-image-dir" class="input" readonly>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="App.saveConfig()">保存配置</button>
+        <button class="btn btn-secondary" onclick="App.loadConfig()">重新加载</button>
+      </div>
+      <div id="config-msg" class="status-msg"></div>
+    </div>
+
+    <!-- ===== 密钥管理 ===== -->
+    <div class="tab" id="tab-keys">
+      <h2 class="section-title">数据库密钥管理</h2>
+      <p class="section-desc">从微信进程内存中提取 SQLCipher 数据库密钥。需要管理员权限（会弹出 UAC 确认框）。</p>
+
+      <div class="status-card" id="keys-status-card">
+        <div class="status-card-icon" id="keys-status-icon">&#x2753;</div>
+        <div class="status-card-body">
+          <div class="status-card-title" id="keys-status-title">检查中...</div>
+          <div class="status-card-sub" id="keys-status-sub">正在读取密钥文件</div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-extract" onclick="App.extractKeys()">
+          提取 / 刷新密钥
+        </button>
+      </div>
+
+      <div class="log-box" id="keys-log"></div>
+    </div>
+
+    <!-- ===== Web UI ===== -->
+    <div class="tab" id="tab-webui">
+      <h2 class="section-title">Web UI 消息监听</h2>
+      <p class="section-desc">实时监听并展示微信消息，通过浏览器访问 <code>http://localhost:5678</code>。</p>
+
+      <div class="status-card" id="webui-status-card">
+        <div class="status-card-icon" id="webui-status-icon">&#x23F9;</div>
+        <div class="status-card-body">
+          <div class="status-card-title" id="webui-status-title">未运行</div>
+          <div class="status-card-sub">点击启动开始监听</div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-start-webui" onclick="App.startWebUi()">启动 Web UI</button>
+        <button class="btn btn-danger" id="btn-stop-webui" onclick="App.stopWebUi()" disabled>停止</button>
+        <button class="btn btn-secondary" id="btn-open-browser" onclick="App.openWebUi()" disabled>打开浏览器</button>
+      </div>
+      <div id="webui-msg" class="status-msg"></div>
+    </div>
+
+    <!-- ===== Claude 注册 ===== -->
+    <div class="tab" id="tab-claude">
+      <h2 class="section-title">注册到 Claude</h2>
+      <p class="section-desc">将 MCP Server 注册到 Claude Desktop 或 Claude Code，重启 Claude 后即可使用微信查询工具。</p>
+
+      <div class="card">
+        <div class="card-title">Claude Desktop</div>
+        <p class="card-desc">写入 <code>%APPDATA%\Claude\claude_desktop_config.json</code></p>
+        <button class="btn btn-primary" onclick="App.registerClaudeDesktop()">注册到 Claude Desktop</button>
+        <div id="desktop-msg" class="status-msg"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Claude Code</div>
+        <p class="card-desc">写入 <code>~/.claude.json</code></p>
+        <button class="btn btn-primary" onclick="App.registerClaudeCode()">注册到 Claude Code</button>
+        <div id="code-msg" class="status-msg"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">MCP Server 路径</div>
+        <p class="card-desc">Claude 会直接调用此可执行文件（无需管理员权限）：</p>
+        <div class="code-block" id="mcp-server-path">检测中...</div>
+      </div>
+    </div>
+
+    <!-- ===== 设置 ===== -->
+    <div class="tab" id="tab-settings">
+      <h2 class="section-title">应用设置</h2>
+
+      <div class="card">
+        <div class="card-title">开机自启</div>
+        <p class="card-desc">登录 Windows 时自动启动 WeChat MCP Manager。</p>
+        <label class="toggle">
+          <input type="checkbox" id="autostart-toggle" onchange="App.setAutostart(this.checked)">
+          <span class="toggle-slider"></span>
+          <span class="toggle-label" id="autostart-label">检查中...</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- ===== 底部日志 ===== -->
+    <div class="log-panel">
+      <div class="log-header">
+        <span>应用日志</span>
+        <button class="btn-icon" onclick="App.clearLog()" title="清空日志">&#x1F5D1;</button>
+      </div>
+      <div class="log-output" id="app-log"></div>
+    </div>
+  </div>
+
+  <script src="main.js"></script>
+</body>
+</html>

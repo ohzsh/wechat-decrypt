@@ -1947,5 +1947,79 @@ def main():
         print("\n已停止")
 
 
+class MonitorWebServer:
+    """可编程启停的 Web UI 服务器，供 GUI 或 Tauri 调用。"""
+
+    def __init__(self):
+        self._server: ThreadedServer | None = None
+        self._monitor_thread: threading.Thread | None = None
+        self._server_thread: threading.Thread | None = None
+        self._running = False
+
+    def start(self, port: int = PORT) -> str:
+        """启动监听服务，返回访问地址。若已运行则直接返回。"""
+        if self._running:
+            return f"http://localhost:{port}"
+
+        with open(KEYS_FILE) as f:
+            keys = json.load(f)
+
+        enc_key = bytes.fromhex(keys["session\\session.db"]["enc_key"])
+        session_db = os.path.join(DB_DIR, "session", "session.db")
+
+        contact_names = load_contact_names()
+        username_db_map = build_username_db_map()
+
+        os.makedirs(MONITOR_CACHE_DIR, exist_ok=True)
+        db_cache = MonitorDBCache(keys, MONITOR_CACHE_DIR)
+
+        def _warmup():
+            warmup_keys = ["message\\message_resource.db"]
+            for i in range(5):
+                k = f"message\\message_{i}.db"
+                if k in keys:
+                    warmup_keys.append(k)
+            for k in warmup_keys:
+                try:
+                    db_cache.get(k)
+                except Exception:
+                    pass
+            _build_emoji_lookup(keys)
+
+        threading.Thread(target=_warmup, daemon=True).start()
+
+        self._monitor_thread = threading.Thread(
+            target=monitor_thread,
+            args=(enc_key, session_db, contact_names, db_cache, username_db_map),
+            daemon=True,
+        )
+        self._monitor_thread.start()
+
+        self._server = ThreadedServer(('0.0.0.0', port), Handler)
+        self._running = True
+
+        def _serve():
+            try:
+                self._server.serve_forever()
+            except Exception:
+                pass
+
+        self._server_thread = threading.Thread(target=_serve, daemon=True)
+        self._server_thread.start()
+
+        return f"http://localhost:{port}"
+
+    def stop(self):
+        """停止服务器（monitor 线程为 daemon，随进程退出）。"""
+        if self._server:
+            self._server.shutdown()
+            self._server = None
+        self._running = False
+
+    @property
+    def is_running(self) -> bool:
+        return self._running
+
+
 if __name__ == '__main__':
     main()

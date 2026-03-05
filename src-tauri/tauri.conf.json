@@ -1,0 +1,40 @@
+{
+  "productName": "WeChatMCP",
+  "version": "0.1.0",
+  "identifier": "com.wechatmcp.app",
+  "build": {
+    "frontendDist": "../src"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "WeChat MCP Manager",
+        "width": 960,
+        "height": 720,
+        "resizable": true,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/icon.ico",
+      "icons/icon.png"
+    ],
+    "resources": {
+      "../build/dist/wechat_mcp_server": "wechat_mcp_server",
+      "../build/dist/wechat_worker": "wechat_worker"
+    },
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": ""
+    }
+  }
+}

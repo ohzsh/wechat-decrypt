@@ -1,0 +1,55 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ---- Python sidecars ----
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build Python sidecars (PyInstaller)
+        run: |
+          pyinstaller build\build_server.spec --distpath build\dist --workpath build\work --clean --noconfirm
+          pyinstaller build\build_worker.spec  --distpath build\dist --workpath build\work --clean --noconfirm
+
+      # ---- Tauri (Rust) ----
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache Rust build artifacts
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2.0" --locked
+
+      - name: Generate app icons
+        run: |
+          pip install pillow
+          python generate_icons.py
+          cargo tauri icon assets\icon.png
+
+      - name: Build Tauri app
+        run: cargo tauri build

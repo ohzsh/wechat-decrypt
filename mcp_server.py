@@ -23,31 +23,14 @@ WAL_HEADER_SZ = 32
 WAL_FRAME_HEADER_SZ = 24
 
 # ============ 配置加载 ============
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-CONFIG_FILE = os.path.join(SCRIPT_DIR, "config.json")
-
-with open(CONFIG_FILE) as f:
-    _cfg = json.load(f)
-for _key in ("keys_file", "decrypted_dir"):
-    if _key in _cfg and not os.path.isabs(_cfg[_key]):
-        _cfg[_key] = os.path.join(SCRIPT_DIR, _cfg[_key])
+from config import load_config as _load_config
+_cfg = _load_config()
 
 DB_DIR = _cfg["db_dir"]
 KEYS_FILE = _cfg["keys_file"]
 DECRYPTED_DIR = _cfg["decrypted_dir"]
-
-# 图片相关路径
-_db_dir = _cfg["db_dir"]
-if os.path.basename(_db_dir) == "db_storage":
-    WECHAT_BASE_DIR = os.path.dirname(_db_dir)
-else:
-    WECHAT_BASE_DIR = _db_dir
-
-DECODED_IMAGE_DIR = _cfg.get("decoded_image_dir")
-if not DECODED_IMAGE_DIR:
-    DECODED_IMAGE_DIR = os.path.join(SCRIPT_DIR, "decoded_images")
-elif not os.path.isabs(DECODED_IMAGE_DIR):
-    DECODED_IMAGE_DIR = os.path.join(SCRIPT_DIR, DECODED_IMAGE_DIR)
+WECHAT_BASE_DIR = _cfg.get("wechat_base_dir", DB_DIR)
+DECODED_IMAGE_DIR = _cfg.get("decoded_image_dir") or os.path.join(_cfg.get("db_dir", ""), "..", "decoded_images")
 
 with open(KEYS_FILE) as f:
     ALL_KEYS = json.load(f)
@@ -161,7 +144,7 @@ class DBCache:
                 self._cache[rel_key] = (db_mtime, wal_mtime, tmp_path)
                 reused += 1
         if reused:
-            print(f"[DBCache] reused {reused} cached decrypted DBs from previous run", flush=True)
+            print(f"[DBCache] reused {reused} cached decrypted DBs from previous run", file=sys.stderr, flush=True)
 
     def _save_persistent_cache(self):
         """持久化缓存映射到磁盘"""

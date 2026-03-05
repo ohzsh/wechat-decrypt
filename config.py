@@ -7,15 +7,29 @@ import json
 import os
 import sys
 
-CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
-
 _DEFAULT_TEMPLATE_DIR = r"D:\xwechat_files\your_wxid\db_storage"
+
+
+def get_app_data_dir() -> str:
+    """返回应用数据目录。
+
+    - 打包环境 (PyInstaller frozen): %APPDATA%\\WeChatMCP\\
+    - 开发环境: 脚本所在目录
+    """
+    if getattr(sys, 'frozen', False):
+        base = os.path.join(os.environ.get('APPDATA', ''), 'WeChatMCP')
+        os.makedirs(base, exist_ok=True)
+        return base
+    return os.path.dirname(os.path.abspath(__file__))
+
+
+CONFIG_FILE = os.path.join(get_app_data_dir(), 'config.json')
 
 _DEFAULT = {
     "db_dir": _DEFAULT_TEMPLATE_DIR,
-    "keys_file": "all_keys.json",
-    "decrypted_dir": "decrypted",
-    "decoded_image_dir": "decoded_images",
+    "keys_file": os.path.join(get_app_data_dir(), "all_keys.json"),
+    "decrypted_dir": os.path.join(get_app_data_dir(), "decrypted"),
+    "decoded_image_dir": os.path.join(get_app_data_dir(), "decoded_images"),
     "wechat_process": "Weixin.exe",
 }
 
@@ -117,7 +131,7 @@ def load_config():
             sys.exit(1)
 
     # 将相对路径转为绝对路径
-    base = os.path.dirname(os.path.abspath(__file__))
+    base = get_app_data_dir()
     for key in ("keys_file", "decrypted_dir", "decoded_image_dir"):
         if key in cfg and not os.path.isabs(cfg[key]):
             cfg[key] = os.path.join(base, cfg[key])
@@ -133,6 +147,6 @@ def load_config():
 
     # decoded_image_dir 默认值
     if "decoded_image_dir" not in cfg:
-        cfg["decoded_image_dir"] = os.path.join(base, "decoded_images")
+        cfg["decoded_image_dir"] = os.path.join(get_app_data_dir(), "decoded_images")
 
     return cfg

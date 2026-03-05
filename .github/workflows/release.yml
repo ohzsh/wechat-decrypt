@@ -1,0 +1,101 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write   # needed to create GitHub releases
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ---- Python sidecars ----
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt pillow
+
+      - name: Build Python sidecars (PyInstaller)
+        run: |
+          pyinstaller build\build_server.spec --distpath build\dist --workpath build\work --clean --noconfirm
+          pyinstaller build\build_worker.spec  --distpath build\dist --workpath build\work --clean --noconfirm
+
+      # ---- Tauri (Rust) ----
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache Rust build artifacts
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2.0" --locked
+
+      - name: Generate app icons
+        run: |
+          python generate_icons.py
+          cargo tauri icon assets\icon.png
+
+      - name: Build Tauri app
+        run: cargo tauri build
+
+      # ---- Collect installers ----
+
+      - name: Collect installer artifacts
+        id: artifacts
+        shell: pwsh
+        run: |
+          $nsis = Get-ChildItem src-tauri\target\release\bundle\nsis\*-setup.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          $msi  = Get-ChildItem src-tauri\target\release\bundle\msi\*.msi          -ErrorAction SilentlyContinue | Select-Object -First 1
+
+          $files = @()
+          if ($nsis) { $files += $nsis.FullName; Write-Host "NSIS: $($nsis.Name)" }
+          if ($msi)  { $files += $msi.FullName;  Write-Host "MSI:  $($msi.Name)"  }
+
+          if ($files.Count -eq 0) {
+            Write-Error "No installer found in bundle output"
+            exit 1
+          }
+
+          # Pass file list to next step (newline-separated)
+          "FILES=$($files -join "`n")" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      # ---- Publish GitHub Release ----
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: WeChat MCP ${{ github.ref_name }}
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          body: |
+            ## WeChat MCP ${{ github.ref_name }}
+
+            ### 安装方法
+            1. 下载 `*-setup.exe`（推荐）或 `*.msi`
+            2. 以管理员身份运行安装程序
+            3. 启动 **WeChat MCP Manager**
+            4. 点击「提取密钥」后，在 Claude 注册选项卡中完成 MCP 注册
+
+            ### 要求
+            - Windows 10/11 x64
+            - 微信（Weixin）已安装并登录
+            - Claude Desktop 或 Claude Code（用于 MCP 集成）
+          files: ${{ steps.artifacts.outputs.FILES }}

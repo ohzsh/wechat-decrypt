@@ -33,14 +33,17 @@ jobs:
       # ---- 生成占位图标（tauri-build 校验图标文件存在） ----
 
       - name: Generate placeholder icons
-        shell: python
+        shell: pwsh
         run: |
-          from PIL import Image
-          import os
-          os.makedirs('src-tauri/icons', exist_ok=True)
-          img = Image.new('RGBA', (512, 512), (9, 187, 7, 255))
-          img.save('src-tauri/icons/icon.png')
-          img.save('src-tauri/icons/icon.ico')
+          pip install pillow --quiet
+          python -c @"
+from PIL import Image
+import os
+os.makedirs('src-tauri/icons', exist_ok=True)
+img = Image.new('RGBA', (512, 512), (9, 187, 7, 255))
+img.save('src-tauri/icons/icon.png')
+img.save('src-tauri/icons/icon.ico')
+"@
 
       # ---- Tauri (Rust) ----
 

@@ -55,27 +55,6 @@ jobs:
       - name: Build Tauri app
         run: cargo tauri build
 
-      # ---- Collect installers ----
-
-      - name: Collect installer artifacts
-        id: artifacts
-        shell: pwsh
-        run: |
-          $nsis = Get-ChildItem src-tauri\target\release\bundle\nsis\*-setup.exe -ErrorAction SilentlyContinue | Select-Object -First 1
-          $msi  = Get-ChildItem src-tauri\target\release\bundle\msi\*.msi          -ErrorAction SilentlyContinue | Select-Object -First 1
-
-          $files = @()
-          if ($nsis) { $files += $nsis.FullName; Write-Host "NSIS: $($nsis.Name)" }
-          if ($msi)  { $files += $msi.FullName;  Write-Host "MSI:  $($msi.Name)"  }
-
-          if ($files.Count -eq 0) {
-            Write-Error "No installer found in bundle output"
-            exit 1
-          }
-
-          # Pass file list to next step (newline-separated)
-          "FILES=$($files -join "`n")" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-
       # ---- Publish GitHub Release ----
 
       - name: Create GitHub Release
@@ -98,4 +77,6 @@ jobs:
             - Windows 10/11 x64
             - 微信（Weixin）已安装并登录
             - Claude Desktop 或 Claude Code（用于 MCP 集成）
-          files: ${{ steps.artifacts.outputs.FILES }}
+          files: |
+            src-tauri/target/release/bundle/nsis/*-setup.exe
+            src-tauri/target/release/bundle/msi/*.msi

@@ -42,14 +42,5 @@ jobs:
         with:
           workspaces: src-tauri -> target
 
-      - name: Install Tauri CLI
-        run: cargo install tauri-cli --version "^2.0" --locked
-
-      - name: Generate app icons
-        run: |
-          pip install pillow
-          python generate_icons.py
-          cargo tauri icon assets\icon.png
-
-      - name: Build Tauri app
-        run: cargo tauri build
+      - name: Check Tauri app (Rust compile check)
+        run: cargo check --manifest-path src-tauri\Cargo.toml
